@@ -3,10 +3,12 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 import requests
+from flask import Flask, request
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 WEATHER_API = os.environ.get("WEATHER_API")
 bot = telebot.TeleBot(BOT_TOKEN)
+app = Flask(__name__)
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
@@ -40,4 +42,14 @@ def handle_message(message):
     weather_info = get_weather(city)
     bot.send_message(message.chat.id, weather_info)
     
-bot.infinity_polling()
+@app.route('/' + BOT_TOKEN, methods=['POST'])
+def webhook():  
+    json_str = request.get_data().decode('UTF-8')
+    update = telebot.types.Update.de_json(json_str)
+    bot.process_new_updates([update])
+    return 'ok', 200
+
+if __name__ == '__main__':
+    bot.remove_webhook()
+    bot.set_webhook(url='https://bot.onrender.com/' + BOT_TOKEN)  # Heroku URL-ni o'zgartiring
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
